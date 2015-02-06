@@ -1,26 +1,72 @@
-Ionic App Base
+Feeder Base
 =====================
 
-A starting project for Ionic that optionally supports using custom SCSS.
+Projeto de consumo de feeds usando o Ionic Framework, Google Feeds e PouchDB.
 
-## Using this project
-
-We recommend using the [Ionic CLI](https://github.com/driftyco/ionic-cli) to create new Ionic projects that are based on this project but use a ready-made starter template.
-
-For example, to start a new Ionic project with the default tabs interface, make sure the `ionic` utility is installed:
-
+##Para trabalhar no app base
+Clone o repositório com:
 ```bash
-$ npm install -g ionic
+$ git clone https://github.com/jlcarvalho/feeder.git
+```
+Adicione os arquivos ao commit com
+```bash
+$ git add --all
+```
+Para commitar para o master faça
+```bash
+$ git push -u origin master
 ```
 
-Then run:
-
+## Para criar uma nova branch
+Clone o repositório com:
 ```bash
-$ ionic start myProject tabs
+$ git clone https://github.com/jlcarvalho/feeder.git
+```
+Crie uma branch com:
+```bash
+$ git checkout -b [nome_da_branch]
+```
+Faça o push da branch para o repositório
+```bash
+$ git push origin [nome_da_branch]
+```
+Verifique se a branch foi criada com
+```bash
+$ git branch
 ```
 
-More info on this can be found on the Ionic [Getting Started](http://ionicframework.com/getting-started) page and the [Ionic CLI](https://github.com/driftyco/ionic-cli) repo.
+##Para clonar uma branch existente
+Clone a branch com:
+```bash
+$ git clone [url_do_repo] --branch [nome_do_branch] [pasta_no_seu_pc]
+```
 
-## Issues
-Issues have been disabled on this repo, if you do find an issue or have a question consider posting it on the [Ionic Forum](http://forum.ionicframework.com/).  Or else if there is truly an error, follow our guidelines for [submitting an issue](http://ionicframework.com/submit-issue/) to the main Ionic repository.
+##Para commitar
+Adicione os arquivos ao commit com
+```bash
+$ git add --all
+```
+Para commitar para a branch faça
+```bash
+$ git push -u origin [nome_da_branch]
+```
+
+##Após criar/clonar branch
+- No diretório do projeto rode
+```bash
+$ ionic platform add android
+```
+- No diretório do projeto rode
+```bash
+$ bower install
+```
+- Conecte o device no PC
+- No diretório do projeto rode
+```bash
+$ ionic run android
+```
+
+##Possíveis erros
+- O bower não baixou o arquivo `angular-pouchdb.js`. Pegue o arquivo em `https://raw.githubusercontent.com/angular-pouchdb/angular-pouchdb/master/angular-pouchdb.js` e coleque no diretório `[dir_do_projeto]/www/lib/angular-pouchdb/dist/`
+- O AdMob do ngCordova não executa. Abra o arquivo `[dir_do_projeto]/www/lib/ngCordova/dist/ng-cordova.js` e altere todas as ocorrências de `plugins.AdMob` para `AdMob`. Altere também `AdMob.createBannerView` para `AdMob.createBanner` e `AdMob.createInterstitialView` para `AdMob.createInterstitial`.
 
