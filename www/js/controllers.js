@@ -7,7 +7,7 @@ angular.module('starter.controllers', [])
 	.controller('NewsCtrl', ['pouchDB', '$scope', '$state', '$stateParams', '$ionicSideMenuDelegate', '$ionicLoading',
 		function (pouchDB, $scope, $state, $stateParams, $ionicSideMenuDelegate, $ionicLoading) {
 			$ionicLoading.show({
-				template: 'Carregando tirinhas...'
+				template: 'Carregando notícias...'
 			});
 
 			$scope.$on('insertComplete', function(){
