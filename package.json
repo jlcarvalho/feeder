@@ -21,6 +21,7 @@
     "org.apache.cordova.statusbar",
     "org.apache.cordova.network-information",
     "./engine/cordova-crosswalk-engine-c0.5",
-    "org.apache.cordova.inappbrowser"
+    "org.apache.cordova.inappbrowser",
+    "https://github.com/jrstarke/webview-debug.git"
   ]
 }
