@@ -1,0 +1,23 @@
+<ion-view title="BRups">
+  <ion-nav-buttons side="left">
+    <button class="button button-icon ion-navicon" ng-click="toggleLeft()" ng-hide="$exposeAside.active"></button>
+  </ion-nav-buttons>
+
+  <ion-content class="has-header">
+    <ion-list>
+      <ion-item class="item-text-wrap" ng-repeat="item in news track by item._id" href="#/new/{{::item._id}}">
+        <h2>{{::item.title}}</h2>
+        <p>{{::item.publisher}}</p>
+      </ion-item>
+    </ion-list>
+
+    <ion-infinite-scroll
+      ng-if="canLoad() && firstLoad()"
+      on-infinite="loadMore()"
+      distance="5%">
+    </ion-infinite-scroll>
+    <button ng-if="!canLoad()" ng-click="loadMore()" class="button button-large button-full button-{{colorClass}}" style="margin:0">
+      Carregar mais
+    </button>
+  </ion-content>
+</ion-view>

@@ -1,0 +1,35 @@
+<ion-view>
+  <ion-nav-title>
+    {{::item.title}}
+  </ion-nav-title>
+  <ion-content class="has-header">
+    <div class="list card">
+
+      <div class="item item-text-wrap">
+        <h2>{{::item.title}}</h2>
+        <p>{{::formatDate(item.date)}}</p>
+      </div>
+
+      <div class="item item-body">
+        <!-- <img class="full-image" ng-src="{{::item.image}}" ng-if="item.image != '' && showImage"> -->
+        <div id="content" ng-bind-html="::item.content"></div>
+      </div>
+
+      <div class="item tabs tabs-secondary tabs-icon-left">
+        <a class="tab-item" ng-click="openInBrowser(item.link)">
+          <i class="icon ion-link verde"></i>
+          Fonte
+        </a>
+        <a class="tab-item" ng-click="share(item)">
+          <i class="icon ion-share azul"></i>
+          Compartilhar
+        </a>
+        <a class="tab-item" ng-click="addToFavorites(item._id)">
+          <i class="icon red" ng-class="{true: 'ion-ios-heart-outline', false: 'ion-ios-heart'}[!favorite]"></i>
+          {{!favorite && 'Salvar' || 'Salvo'}}
+        </a>
+      </div>
+
+    </div>
+  </ion-content>
+</ion-view>

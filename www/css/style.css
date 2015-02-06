@@ -1,0 +1,33 @@
+/* Empty. Add your own CSS if you like */
+.bar {
+	height: 50px;
+	padding: 8px 5px;
+}
+
+.bar .title {
+	height: 49px;
+	line-height: 50px;
+}
+
+#content p{
+    font-size: 16px;
+}
+
+#content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.red {
+    color: #ED1E24;
+}
+
+.azul {
+    color: #4787C7;
+}
+
+.verde {
+    color: #35D7A0;
+}
