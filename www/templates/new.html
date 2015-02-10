@@ -2,7 +2,7 @@
   <ion-nav-title>
     {{::item.title}}
   </ion-nav-title>
-  <ion-content class="has-header">
+  <ion-content lazy-scroll class="has-header">
     <div class="list card">
 
       <div class="item item-text-wrap">
@@ -12,7 +12,7 @@
 
       <div class="item item-body">
         <!-- <img class="full-image" ng-src="{{::item.image}}" ng-if="item.image != '' && showImage"> -->
-        <div id="content" ng-bind-html="::item.content"></div>
+        <div id="content" compile="::item.content"></div>
       </div>
 
       <div class="item tabs tabs-secondary tabs-icon-left">

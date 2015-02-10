@@ -6,11 +6,10 @@
 // 'starter.controllers' is found in controllers.js
 moment.locale('pt_BR');
 
-angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb'])
-
-	.run(function ($ionicPlatform, $cordovaAdMob, $cordovaNetwork, $rootScope, $ionicHistory, $ionicSideMenuDelegate, pouchDB, Feeder) {
+angular.module('starter', ['ionic', 'ionicLazyLoad', 'starter.controllers', 'ngCordova', 'pouchdb'])
+	.run(function ($ionicPlatform, $cordovaAdMob, $rootScope, $ionicHistory, $ionicSideMenuDelegate, pouchDB, Feeder) {
 		$ionicPlatform.ready(function () {
-			var isOnline = true /*$cordovaNetwork.isOnline()*/, isWifi = true/*$cordovaNetwork.getNetwork() === 'wifi' ? true : false*/ ;
+			var isOnline = true;
 
 			if(typeof AdMob !== 'undefined' && isOnline){
 				$cordovaAdMob.createBannerView( {
@@ -46,12 +45,18 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb
 			db.put(favoritesView);
 			db.put(feedsView);
 
-			if(isOnline && isWifi){
+			if(isOnline){
 				Feeder.insert(feeds).then(function(data){
 					$rootScope.$broadcast('insertComplete', true);
+					if(navigator.splashscreen) {
+						navigator.splashscreen.hide();
+					}
 				});
 			} else {
 				$rootScope.$broadcast('insertComplete', true);
+				if(navigator.splashscreen) {
+					navigator.splashscreen.hide();
+				}
 			}
 
 			$rootScope.$on('$stateChangeSuccess',
@@ -153,7 +158,10 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb
 			}
 	}])
 
-	.config(function ($stateProvider, $urlRouterProvider) {
+	.config(function ($ionicConfigProvider, $stateProvider, $urlRouterProvider) {
+
+		if(!ionic.Platform.isIOS())$ionicConfigProvider.scrolling.jsScrolling(false);
+
 		$stateProvider
 			.state('news', {
 				url: "/news",
@@ -187,4 +195,26 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb
 
 			// if none of the above states are matched, use this as the fallback
 			$urlRouterProvider.otherwise('/news');
-	});
+	})
+
+	.directive('compile', ['$compile', function ($compile) {
+		return function(scope, element, attrs) {
+			scope.$watch(
+				function(scope) {
+					// watch the 'compile' expression for changes
+					return scope.$eval(attrs.compile);
+				},
+				function(value) {
+					// when the 'compile' expression changes
+					// assign it into the current DOM
+					element.html(value);
+
+					// compile the new DOM and link it to the current
+					// scope.
+					// NOTE: we only compile .childNodes so that
+					// we don't get into infinite loop compiling ourselves
+					$compile(element.contents())(scope);
+				}
+			);
+		};
+	}])

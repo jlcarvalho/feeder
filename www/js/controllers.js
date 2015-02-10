@@ -97,8 +97,8 @@ angular.module('starter.controllers', [])
 			};
 	}])
 
-	.controller('NewCtrl', ['Feeder', '$scope', '$timeout', '$stateParams', '$ionicPlatform', '$cordovaSocialSharing', '$cordovaNetwork', '$cordovaInAppBrowser', 'pouchDB', '$ionicLoading',
-		function (Feed, $scope, $timeout, $stateParams, $ionicPlatform, $cordovaSocialSharing, $cordovaNetwork, $cordovaInAppBrowser, pouchDB, $ionicLoading) {
+	.controller('NewCtrl', ['Feeder', '$scope', '$timeout', '$stateParams', '$ionicPlatform', '$cordovaSocialSharing', '$cordovaInAppBrowser', 'pouchDB', '$ionicLoading',
+		function (Feed, $scope, $timeout, $stateParams, $ionicPlatform, $cordovaSocialSharing, $cordovaInAppBrowser, pouchDB, $ionicLoading) {
 			$scope.colorClass = colorClass;
 			$ionicLoading.show({
 				template: 'Carregando...'
@@ -113,11 +113,12 @@ angular.module('starter.controllers', [])
 			$scope.share = share;
 			$scope.formatDate = formatDate;
 			$scope.openInBrowser = openInBrowser;
-			$scope.showImage = true /*$cordovaNetwork.getNetwork() === 'wifi' ? true : false*/;
+			$scope.showImage = true;
 
 			(function(){
 				$ionicPlatform.ready(function() {
 					db.get($stateParams.id).then(function(item){
+						item.content = item.content.replace(/src/gi, 'image-lazy-src');
 						$scope.item = item;
 						$scope.favorite = angular.isDefined(item.favorite) ? item.favorite : $scope.favorite ;
 
@@ -170,6 +171,22 @@ angular.module('starter.controllers', [])
 				        } else {
 				        	return false;
 				        }
+					}).on('click', 'img', function(event){
+						if(window.plugins && window.plugins.webintent){
+							event.stopPropagation();
+							event.preventDefault();
+							if(event.handled !== true) {
+								window.plugins.webintent.startActivity({
+									action: window.plugins.webintent.ACTION_VIEW,
+									url: angular.element(this).attr("src"),
+									type: 'image/*'
+								});
+								event.handled = true;
+								return false;
+							} else {
+								return false;
+							}
+						}
 					});
 
 				});
