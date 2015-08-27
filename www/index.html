@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width">
-    <title></title>
+      <meta http-equiv="Content-Security-Policy" content="default-src *; style-src 'self' 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+
+      <title></title>
 
     <link href="lib/ionic/css/ionic.css" rel="stylesheet">
     <link href="lib/ionicons/css/ionicons.css" rel="stylesheet">
@@ -27,7 +29,9 @@
 
     <!-- bower/pouchdb js -->
     <script src="lib/pouchdb/dist/pouchdb.min.js"></script>
-    <script src="lib/angular-pouchdb/dist/angular-pouchdb.js"></script>
+    <script src="lib/angular-pouchdb/angular-pouchdb.js"></script>
+    <script src="lib/pouchdb-find/dist/pouchdb.find.js"></script>
+    <script src="lib/pouchdb-authentication/dist/pouchdb.authentication.js"></script>
 
     <!-- cordova script (this will be a 404 during development) -->
     <script src="lib/ngCordova/dist/ng-cordova.js"></script>

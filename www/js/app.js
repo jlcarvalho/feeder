@@ -6,10 +6,10 @@
 // 'starter.controllers' is found in controllers.js
 moment.locale('pt_BR');
 
-angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb'])
+angular.module('starter', ['ionic', 'ionicLazyLoad', 'starter.controllers', 'ngCordova'])
 
-	.run(function ($ionicPlatform, $cordovaAdMob, $cordovaNetwork, $rootScope, $ionicHistory, $ionicSideMenuDelegate, pouchDB, Feeder) {
-		$ionicPlatform.ready(function () {
+	.run(function (FeederService, $ionicPlatform, $cordovaAdMob, $cordovaNetwork, $rootScope, $ionicHistory, $ionicSideMenuDelegate) {
+        ionic.Platform.ready(function () {
 			var isOnline = true /*$cordovaNetwork.isOnline()*/, isWifi = true/*$cordovaNetwork.getNetwork() === 'wifi' ? true : false*/ ;
 
 			if(typeof AdMob !== 'undefined' && isOnline){
@@ -19,39 +19,9 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb
 					autoShow: true
 				});
 			}
-			var db = pouchDB('feeds');
 
 			if (window.StatusBar) { // org.apache.cordova.statusbar required
 				StatusBar.styleDefault();
-			}
-
-			var favoritesView = {
-				_id: '_design/favorites',
-				views: {
-					'favorites': {
-						map: function (doc) { emit(doc.favorite); }.toString()
-			 		}
-				}
-			};
-
-			var feedsView = {
-				_id: '_design/feeds',
-				views: {
-					'feeds': {
-						map: function (doc) { emit(doc._id); }.toString()
-			 		}
-				}
-			}
-
-			db.put(favoritesView);
-			db.put(feedsView);
-
-			if(isOnline && isWifi){
-				Feeder.insert(feeds).then(function(data){
-					$rootScope.$broadcast('insertComplete', true);
-				});
-			} else {
-				$rootScope.$broadcast('insertComplete', true);
 			}
 
 			$rootScope.$on('$stateChangeSuccess',
@@ -63,97 +33,277 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb
 		});
 	})
 
-	.factory('Feeder', ['pouchDB', '$q', '$http', function(pouchDB, $q, $http){
-		return {
-			insert: insert,
-			parseFeed: parseFeed
-		}
+    .service('DB', ['$q', function($q){
+        var deferred = $q.defer();
+        var _db = new PouchDB('feeds', {adapter: 'websql'});
+        var _remote = new PouchDB('https://feeeder.iriscouch.com/feeds');
 
-		function insert (feeds) {
-			var deferred = $q.defer(), db = pouchDB('feeds');
+        _db.updateRemote = updateRemote;
+        _db.replicate.from(_remote).on('complete', function () {
+            $q.all(_db.createIndex({
+                index: {
+                    fields: ['type']
+                }
+            }), _db.createIndex({
+                index: {
+                    fields: ['type', 'favorite']
+                }
+            })).then(function(){
+                deferred.resolve(_db);
+            }, function(){
+                deferred.resolve(_db);
+            });
+        }).on('error', function(){
+            deferred.resolve(_db);
+        })
 
-			concatFeeds(feeds).then(function(data){
-				db.bulkDocs(data).then(function(items) {
-					deferred.resolve(items);
-				});
-			});
+        return deferred.promise;
 
-			return deferred.promise;
-		}
+        function updateRemote(){
+            var deferred = $q.defer();
+            _db.replicate.to(_remote).on('complete', function (event) {
+                console.dir(event);
+            })
+            return deferred.promise;
+        }
+    }])
 
-		function concatFeeds(feeds) {
-			var deferred = $q.defer(), items = [];
+    .factory('FeederService', ['$http', '$q', 'DB', function ($http, $q, DB) {
+        var _feeds, _db = DB, ping = addFeeds(feeds);
 
-			for(var i = 0, len = feeds.length; i<len; i++){
-				var j = 0;
-				retrieveFeeds(feeds[i].url).then(function(data){
-					j++;
-					items = items.concat(data);
+        return {
+            getFeed: getFeed,
+            getFeeds: getFeeds,
+            addFeeds: addFeeds,
+            updateFeed: updateFeed,
+            deleteFeed: deleteFeed
+        };
 
-					if(j == len){
-						deferred.resolve(items);
-					}
-				});
-			}
+        function whenUnblocked(){
+            return ping;
+        }
 
-			return deferred.promise;
-		}
+        function addFeeds(feeds) {
+            return _db.then(function(db){
+                return $q.when(concatFeeds(feeds).then(function(data){
+                    return db.bulkDocs(data);
+                }).then(function(items) {
+                    db.updateRemote();
+                    return items;
+                }));
+            })
+        }
 
-		function retrieveFeeds(feed){
-			var deferred = $q.defer(), items = [];
+        function updateFeed(feed) {
+            return whenUnblocked().then(function(){
+                return _db;
+            }).then(function(db){
+                return $q.when(db.put(feed));
+            });
+        }
 
-			parseFeed(feed).then(function (res) {
-				var tam = res.data.responseData.feed.entries.length;
+        function deleteFeed(feed) {
+            return whenUnblocked().then(function(){
+                return _db;
+            }).then(function(db){
+                return $q.when(db.remove(feed));
+            });
+        }
 
-				for(var j = 0; j < tam; j++){
-					var e = res.data.responseData.feed.entries[j];
-					var date = moment(new Date(e.publishedDate)).format();
+        function getFeed(id){
+            return whenUnblocked().then(function(){
+                return _db;
+            }).then(function(db) {
+               return $q.when(db.get(id));
+            });
+        }
 
-					var imgSrc = searchXml('<div>'+e.content+'</div>', 'img').attr('src');
-					var image = imgSrc ? (imgSrc.slice(0,2) == '//' || imgSrc.slice(0,7) == 'http://' || imgSrc.slice(0,8) == 'https://' ? (imgSrc.slice(0,2) == '//' ? 'http:'+imgSrc : imgSrc) : res.data.responseData.feed.link + '/' + imgSrc) : '';
+        function getFeeds(opts) {
+            var selector = {type: {$eq: 'feed'}, _id: {$exists: true}};
+            if(opts.favorites) {
+                selector.favorite = {$exists: true};
+            }
+            return whenUnblocked().then(function(){
+                return _db;
+            }).then(function(db) {
+                return $q.when(db.find({
+                    selector: selector,
+                    skip: opts.skip,
+                    limit: opts.limit,
+                    sort: [{'_id': 'desc'}]
+                })).then(function (res) {
+                    if(!_feeds){
+                        // Listen for changes on the database.
+                        db.changes({live: true, since: 'now', include_docs: true})
+                            .on('change', onDatabaseChange);
+                    }
 
-					var feedItem = {
-						_id: date,
-						publisher: res.data.responseData.feed.title,
-						link: e.link,
-						content: e.content,
-						description: e.contentSnippet,
-						title: e.title,
-						image: image,
-						category: e.categories[0],
-						date: date
-					};
+                    _feeds = res.docs;
 
-					items.push(feedItem);
-				};
+                    return _feeds;
+                });
+            });
+        };
 
-				if(items.length == tam){
-					deferred.resolve(items);
-				}
-			});
+        function onDatabaseChange(change) {
+            var index = findIndex(_feeds, change.id);
+            var feed = _feeds[index];
 
-			return deferred.promise;
-		}
+            if (change.deleted) {
+                if (feed) {
+                    _feeds.splice(index, 1); // delete
+                }
+            } else {
+                if (feed && feed._id === change.id) {
+                    _feeds[index] = change.doc; // update
+                } else {
+                    _feeds.splice(index, 0, change.doc) // insert
+                }
+            }
+        }
 
-		function parseFeed(url) {
-			return $http.jsonp('http://ajax.googleapis.com/ajax/services/feed/load?v=1.0&num=50&callback=JSON_CALLBACK&q=' + encodeURIComponent(url));
-		}
+        function findIndex(array, id) {
+            var low = 0, high = array.length, mid;
+            while (low < high) {
+                mid = (low + high) >>> 1;
+                array[mid]._id < id ? low = mid + 1 : high = mid
+            }
+            return low;
+        }
 
-		function searchXml(xmlStr, selector) {
-			var parser, xmlDoc;
-			if(window.DOMParser) {
-				parser = new DOMParser();
-				xmlDoc = parser.parseFromString(xmlStr, "text/xml");
-			} else {
-				xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
-				xmlDoc.async = false;
-				xmlDoc.loadXML(xmlStr);
-			}
-			return angular.element(xmlDoc).find(selector).eq(0);
-			}
-	}])
+        function concatFeeds(feeds) {
+            var deferred = $q.defer(), items = [];
 
-	.config(function ($stateProvider, $urlRouterProvider) {
+            for(var i = 0, len = feeds.length; i<len; i++){
+                var j = 0;
+                retrieveFeeds(feeds[i].url).then(function(data){
+                    j++;
+                    items = items.concat(data);
+
+                    if(j == len){
+                        deferred.resolve(items);
+                    }
+                });
+            }
+
+            return deferred.promise;
+        }
+
+        function retrieveFeeds(feed){
+            var deferred = $q.defer(), items = [];
+
+            parseFeed(feed).then(function (res) {
+                var tam = res.data.responseData.feed.entries.length;
+
+                for(var j = 0; j < tam; j++){
+                    var e = res.data.responseData.feed.entries[j];
+                    var date = moment(new Date(e.publishedDate)).format();
+
+                    var imgSrc = searchXml('<div>'+e.content+'</div>', 'img').attr('src');
+                    var image = imgSrc ? (imgSrc.slice(0,2) == '//' || imgSrc.slice(0,7) == 'http://' || imgSrc.slice(0,8) == 'https://' ? (imgSrc.slice(0,2) == '//' ? 'http:'+imgSrc : imgSrc) : res.data.responseData.feed.link + '/' + imgSrc) : '';
+
+                    var feedItem = {
+                        _id: date,
+                        publisher: res.data.responseData.feed.title,
+                        link: e.link,
+                        content: e.content,
+                        description: e.contentSnippet,
+                        title: e.title,
+                        image: image,
+                        category: e.categories[0],
+                        date: date,
+                        type: 'feed'
+                    };
+
+                    items.push(feedItem);
+                };
+
+                if(items.length == tam){
+                    deferred.resolve(items);
+                }
+            });
+
+            return deferred.promise;
+        }
+
+        function parseFeed(url) {
+            return $http.jsonp('http://ajax.googleapis.com/ajax/services/feed/load?v=1.0&num=50&callback=JSON_CALLBACK&q=' + encodeURIComponent(url));
+        }
+
+        function searchXml(xmlStr, selector) {
+            var parser, xmlDoc;
+            if(window.DOMParser) {
+                parser = new DOMParser();
+                xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+            } else {
+                xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+                xmlDoc.async = false;
+                xmlDoc.loadXML(xmlStr);
+            }
+            return angular.element(xmlDoc).find(selector).eq(0);
+        }
+    }])
+
+    .service('Timeline', ['FeederService', '$ionicLoading', '$q', function(FeederService, $ionicLoading, $q){
+        return function(opts) {
+            var svc = {}, _feeds = [], pag = 0, limit = 15;
+            opts = opts || {};
+
+            $ionicLoading.show({
+                template: 'Carregando tirinhas...'
+            });
+
+            svc.data = _feeds;
+            svc.loadMore = loadMore;
+            svc.canLoad = canLoad;
+
+            function loadMore() {
+                var pagination = {
+                    skip: pag * limit,
+                    limit: limit
+                };
+                return $q.when(FeederService.getFeeds(_.assign(pagination, opts)).then(function (docs) {
+                    $ionicLoading.hide();
+                    angular.copy(_.union(svc.data, docs), svc.data);
+                    pag++;
+
+                    return docs;
+                }));
+            }
+
+            function canLoad() {
+                return pag < 5;
+            }
+
+            return svc;
+        }
+    }])
+
+    .directive('compile', ['$compile', function ($compile) {
+        return function(scope, element, attrs) {
+            scope.$watch(
+                function(scope) {
+                    // watch the 'compile' expression for changes
+                    return scope.$eval(attrs.compile);
+                },
+                function(value) {
+                    // when the 'compile' expression changes
+                    // assign it into the current DOM
+                    element.html(value);
+
+                    // compile the new DOM and link it to the current
+                    // scope.
+                    // NOTE: we only compile .childNodes so that
+                    // we don't get into infinite loop compiling ourselves
+                    $compile(element.contents())(scope);
+                }
+            );
+        };
+    }])
+
+	.config(function($stateProvider, $urlRouterProvider, $ionicConfigProvider) {
+        if(!ionic.Platform.isIOS()) $ionicConfigProvider.scrolling.jsScrolling(false);
+
 		$stateProvider
 			.state('news', {
 				url: "/news",
@@ -166,6 +316,7 @@ angular.module('starter', ['ionic', 'starter.controllers', 'ngCordova', 'pouchdb
 			})
 
 			.state('favorites', {
+                cache: false,
 				url: "/favorites",
 				views: {
 					'appContent': {

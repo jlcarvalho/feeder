@@ -1,14 +1,4 @@
 /* Empty. Add your own CSS if you like */
-.bar {
-	height: 50px;
-	padding: 8px 5px;
-}
-
-.bar .title {
-	height: 49px;
-	line-height: 50px;
-}
-
 #content p{
     font-size: 16px;
 }

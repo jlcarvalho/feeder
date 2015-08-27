@@ -1,4 +1,4 @@
-<ion-view title="BRups">
+<ion-view title="Tirinhas">
   <ion-nav-buttons side="left">
     <button class="button button-icon ion-navicon" ng-click="toggleLeft()" ng-hide="$exposeAside.active"></button>
   </ion-nav-buttons>
@@ -12,9 +12,9 @@
     </ion-list>
 
     <ion-infinite-scroll
-      ng-if="canLoad() && firstLoad()"
+      ng-if="canLoad()"
       on-infinite="loadMore()"
-      distance="5%">
+      distance="10%">
     </ion-infinite-scroll>
     <button ng-if="!canLoad()" ng-click="loadMore()" class="button button-large button-full button-{{colorClass}}" style="margin:0">
       Carregar mais

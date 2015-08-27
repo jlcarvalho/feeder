@@ -1,110 +1,63 @@
 angular.module('starter.controllers', [])
 
-	.controller('AppCtrl', ['$scope',function ($scope) {
-			$scope.colorClass = colorClass;
+	.controller('AppCtrl', ['$scope', function ($scope) {
+		$scope.colorClass = colorClass;
 	}])
 
-	.controller('NewsCtrl', ['pouchDB', '$scope', '$state', '$stateParams', '$ionicSideMenuDelegate', '$ionicLoading',
-		function (pouchDB, $scope, $state, $stateParams, $ionicSideMenuDelegate, $ionicLoading) {
-			$ionicLoading.show({
-				template: 'Carregando tirinhas...'
-			});
-
-			$scope.$on('insertComplete', function(){
-				getAll(0);
-			});
-
-			var pag = 0, limit = 10, db = pouchDB('feeds');
-
-			$scope.news = [];
+	.controller('NewsCtrl', ['Timeline', '$scope', '$state', '$stateParams', '$ionicSideMenuDelegate', '$ionicLoading',
+		function (Timeline, $scope, $state, $stateParams, $ionicSideMenuDelegate, $ionicLoading) {
+			var feeds = new Timeline();
+			$scope.news = feeds.data;
 
 			$scope.loadMore = loadMore;
-			$scope.canLoad = canLoad;
-			$scope.firstLoad = firstLoad;
+			$scope.canLoad = feeds.canLoad;
 			$scope.toggleLeft = toggleLeft;
 
-			function getAll(p){
-				p = p || pag;
-				db.query('feeds', {include_docs: true, skip: p*limit, limit : limit, descending : true}).then(function (data) {
-					$ionicLoading.hide();
-					$scope.news = $scope.news.concat(_.pluck(data.rows, 'doc'));
-					pag++;
+			function loadMore(){
+				feeds.loadMore().then(function(){
 					$scope.$broadcast('scroll.infiniteScrollComplete');
 				});
-			}
-
-			function loadMore(){
-				getAll(pag);
-			}
-
-			function canLoad(){
-				return pag < 5;
-			}
-
-			function firstLoad(){
-				return pag > 0;
 			}
 
 			function toggleLeft() {
 				$ionicSideMenuDelegate.toggleLeft();
-			};
+			}
 	}])
 
-	.controller('FavoritesCtrl', ['Feeder', 'pouchDB', '$scope', '$state', '$stateParams', '$ionicSideMenuDelegate', '$ionicLoading',
-		function (Feeder, pouchDB, $scope, $state, $stateParams, $ionicSideMenuDelegate, $ionicLoading) {
-			$ionicLoading.show({
-				template: 'Carregando...'
+	.controller('FavoritesCtrl', ['Timeline', '$scope', '$state', '$stateParams', '$ionicSideMenuDelegate', '$ionicLoading',
+		function (Timeline, $scope, $state, $stateParams, $ionicSideMenuDelegate, $ionicLoading) {
+			var feeds = new Timeline({
+				favorites: true
 			});
-
-			var pag = 0, limit = 10, db = pouchDB('feeds');
-
-			$scope.news = [];
+			$scope.news = feeds.data;
 			$scope.stop = false;
 
 			$scope.loadMore = loadMore;
-			$scope.canLoad = canLoad;
+			$scope.canLoad = feeds.canLoad;
 			$scope.noMore = noMore;
 			$scope.toggleLeft = toggleLeft;
 
-			function getAll(p){
-				p = p || pag;
-				db.query('favorites', {key: true, include_docs: true, skip: p*limit, limit : limit, descending : true}).then(function (data) {
-					$ionicLoading.hide();
-					if(data.rows.length === 0) {
+			function loadMore(){
+				feeds.loadMore().then(function(docs){
+					if(docs.length < 10){
 						$scope.stop = true;
-					} else {
-						$scope.news = $scope.news.concat(_.pluck(data.rows, 'doc'));
 					}
-					pag++;
 					$scope.$broadcast('scroll.infiniteScrollComplete');
 				});
 			}
-
-			function loadMore(){
-				getAll(pag);
-			}
-
-			function canLoad(){
-				return pag < 5;
-			}
-
 			function noMore(){
 				return $scope.news.length === 0;
 			}
 
 			function toggleLeft() {
 				$ionicSideMenuDelegate.toggleLeft();
-			};
+			}
+
 	}])
 
-	.controller('NewCtrl', ['Feeder', '$scope', '$timeout', '$stateParams', '$ionicPlatform', '$cordovaSocialSharing', '$cordovaNetwork', '$cordovaInAppBrowser', 'pouchDB', '$ionicLoading',
-		function (Feed, $scope, $timeout, $stateParams, $ionicPlatform, $cordovaSocialSharing, $cordovaNetwork, $cordovaInAppBrowser, pouchDB, $ionicLoading) {
+	.controller('NewCtrl', ['FeederService', '$scope', '$timeout', '$stateParams', '$cordovaSocialSharing', '$cordovaNetwork', '$cordovaInAppBrowser', '$ionicLoading',
+		function (FeederService, $scope, $timeout, $stateParams, $cordovaSocialSharing, $cordovaNetwork, $cordovaInAppBrowser, $ionicLoading) {
 			$scope.colorClass = colorClass;
-			$ionicLoading.show({
-				template: 'Carregando...'
-			});
-
-			var db = pouchDB('feeds');
 
 			$scope.item = {};
 			$scope.favorite = false;
@@ -115,9 +68,15 @@ angular.module('starter.controllers', [])
 			$scope.openInBrowser = openInBrowser;
 			$scope.showImage = true /*$cordovaNetwork.getNetwork() === 'wifi' ? true : false*/;
 
+			$ionicLoading.show({
+				template: 'Carregando...'
+			});
+
 			(function(){
-				$ionicPlatform.ready(function() {
-					db.get($stateParams.id).then(function(item){
+				ionic.Platform.ready(function() {
+					FeederService.getFeed($stateParams.id).then(function(item){
+						item.content = item.content.replace(/src/gi, 'image-lazy-src');
+
 						$scope.item = item;
 						$scope.favorite = angular.isDefined(item.favorite) ? item.favorite : $scope.favorite ;
 
@@ -170,23 +129,38 @@ angular.module('starter.controllers', [])
 				        } else {
 				        	return false;
 				        }
+					}).on('click', 'img', function(event){
+						if(window.plugins && window.plugins.webintent){
+							event.stopPropagation();
+							event.preventDefault();
+							if(event.handled !== true) {
+								window.plugins.webintent.startActivity({
+									action: window.plugins.webintent.ACTION_VIEW,
+									url: angular.element(this).attr("src"),
+									type: 'image/*'
+								});
+								event.handled = true;
+								return false;
+							} else {
+								return false;
+							}
+						}
 					});
-
 				});
 			}());
 
 			function addToFavorites (itemId) {
-				db.get(itemId).then(function(doc) {
+				FeederService.getFeed(itemId).then(function(doc) {
 					var updatedItem = doc;
 					updatedItem.favorite = updatedItem.favorite ? false : true;
-					return db.put(updatedItem).then(function(item){
+					return FeederService.updateFeed(updatedItem).then(function(item){
 						$scope.favorite = updatedItem.favorite;
 					});
 				});
 			}
 
 			function share (item) {
-				$ionicPlatform.ready(function() {
+				ionic.Platform.ready(function() {
 					$cordovaSocialSharing.share(item.title, item.content, item.image, item.link); // Share via native share sheet
 				});
 			}
